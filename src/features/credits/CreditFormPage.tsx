@@ -1,19 +1,28 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useDataStore } from "../../app/DataProvider";
 import { Button } from "../../components/ui/Button";
 import { calculateCreditTotal, calculateInstallmentValue } from "../../lib/credit-calculator";
 import { getWeekdayFromDate, todayInputValue } from "../../lib/date-utils";
 import { formatCurrency, formatDate } from "../../lib/format";
 import { createId } from "../../lib/id";
-import { generateInstallments, generateInstallmentsFromPending, getFinalDueDate } from "../../lib/installments";
+import {
+  generateInstallments,
+  generateInstallmentsFromPending,
+  getFinalDueDate,
+  getNextInstallment,
+  getPaidInstallmentCount
+} from "../../lib/installments";
 import { demoUserId } from "../../lib/mock-data";
 import type { CreditFrequency } from "../../types/domain";
 
 export function CreditFormPage() {
   const navigate = useNavigate();
-  const { clients, addCredit } = useDataStore();
+  const { creditId } = useParams();
+  const { clients, credits, addCredit, updateCredit, getPaidByCredit, getInstallmentsByCredit } = useDataStore();
+  const editingCredit = credits.find((credit) => credit.id === creditId);
+  const isEditing = Boolean(creditId);
   const [clientId, setClientId] = useState(clients[0]?.id ?? "");
   const [amount, setAmount] = useState(1000000);
   const [interestPercent, setInterestPercent] = useState(20);
@@ -24,6 +33,28 @@ export function CreditFormPage() {
   const [paidInstallments, setPaidInstallments] = useState(0);
   const [currentBalance, setCurrentBalance] = useState(0);
   const [nextDueDate, setNextDueDate] = useState(todayInputValue());
+  const [loadedEditCreditId, setLoadedEditCreditId] = useState("");
+
+  useEffect(() => {
+    if (!editingCredit || loadedEditCreditId === editingCredit.id) return;
+
+    const paidAmount = getPaidByCredit(editingCredit.id);
+    const installmentsForCredit = getInstallmentsByCredit(editingCredit.id);
+    const paidCount = getPaidInstallmentCount(editingCredit, paidAmount);
+    const nextInstallment = getNextInstallment(installmentsForCredit, paidCount);
+
+    setClientId(editingCredit.clientId);
+    setAmount(editingCredit.amount);
+    setInterestPercent(editingCredit.interestPercent);
+    setInstallments(editingCredit.installments);
+    setFrequency(editingCredit.frequency);
+    setStartDate(editingCredit.startDate);
+    setCreditMode("existing");
+    setPaidInstallments(paidCount);
+    setCurrentBalance(Math.max(0, editingCredit.totalAmount - paidAmount));
+    setNextDueDate(nextInstallment?.dueDate ?? editingCredit.startDate);
+    setLoadedEditCreditId(editingCredit.id);
+  }, [editingCredit, getInstallmentsByCredit, getPaidByCredit, loadedEditCreditId]);
 
   const totals = useMemo(() => calculateCreditTotal(amount, interestPercent), [amount, interestPercent]);
   const installmentValue = useMemo(
@@ -37,14 +68,19 @@ export function CreditFormPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedClient || amount <= 0 || installments <= 0) return;
-    const safePaidInstallments = Math.min(installments, Math.max(0, paidInstallments));
+    const alreadyPaidAmount = editingCredit ? getPaidByCredit(editingCredit.id) : initialPaidAmount;
+    const safePaidInstallments = editingCredit
+      ? getPaidInstallmentCount({ ...editingCredit, installments, installmentValue }, alreadyPaidAmount)
+      : Math.min(installments, Math.max(0, paidInstallments));
 
     const newCredit = {
-      id: createId("CR"),
-      userId: demoUserId,
+      id: editingCredit?.id ?? createId("CR"),
+      userId: editingCredit?.userId ?? demoUserId,
       clientId: selectedClient.id,
       clientName: selectedClient.fullName,
-      type: "loan_with_interest",
+      type: editingCredit?.type ?? "loan_with_interest",
+      productName: editingCredit?.productName,
+      productDescription: editingCredit?.productDescription,
       amount,
       interestPercent,
       interestAmount: totals.interestAmount,
@@ -58,7 +94,7 @@ export function CreditFormPage() {
       status: "active"
     } as const;
     const generatedInstallments =
-      creditMode === "existing"
+      creditMode === "existing" || isEditing
         ? generateInstallmentsFromPending(newCredit, safePaidInstallments, nextDueDate)
         : generateInstallments(newCredit);
     const initialPayment =
@@ -76,10 +112,16 @@ export function CreditFormPage() {
           }
         : undefined;
 
-    await addCredit({
+    const creditToSave = {
       ...newCredit,
       dueDate: getFinalDueDate(generatedInstallments)
-    }, generatedInstallments, initialPayment);
+    };
+
+    if (isEditing) {
+      await updateCredit(creditToSave, generatedInstallments);
+    } else {
+      await addCredit(creditToSave, generatedInstallments, initialPayment);
+    }
 
     navigate("/creditos");
   }
@@ -109,14 +151,26 @@ export function CreditFormPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold">Nuevo credito</h1>
-        <p className="text-slate-500">Calculo automatico de interes, total y valor de cuota.</p>
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <div>
+          <h1 className="text-2xl font-bold">{isEditing ? "Editar credito" : "Nuevo credito"}</h1>
+          <p className="text-slate-500">
+            {isEditing
+              ? "Corregi datos del credito y recalcula los vencimientos pendientes."
+              : "Calculo automatico de interes, total y valor de cuota."}
+          </p>
+        </div>
+        {isEditing ? (
+          <Link className="text-sm font-semibold text-brand-700" to="/creditos">
+            Volver a creditos
+          </Link>
+        ) : null}
       </div>
 
       <form className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-soft lg:grid-cols-[1fr_320px]" onSubmit={handleSubmit}>
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="md:col-span-2">
+          {!isEditing ? (
+            <div className="md:col-span-2">
             <span className="text-sm font-medium text-slate-700">Tipo de carga</span>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               <button
@@ -142,6 +196,7 @@ export function CreditFormPage() {
               </button>
             </div>
           </div>
+          ) : null}
 
           <label className="block md:col-span-2">
             <span className="text-sm font-medium text-slate-700">Cliente</span>
@@ -156,22 +211,27 @@ export function CreditFormPage() {
           <NumberField label="Cantidad de cuotas" value={installments} onChange={setInstallments} />
           <label className="block">
             <span className="text-sm font-medium text-slate-700">
-              {creditMode === "existing" ? "Siguiente vencimiento pendiente" : "Fecha de la primera cuota"}
+              {creditMode === "existing" || isEditing ? "Siguiente vencimiento pendiente" : "Fecha de la primera cuota"}
             </span>
             <input
               className="mt-1 h-11 w-full rounded-md border border-slate-300 px-3"
               type="date"
-              value={creditMode === "existing" ? nextDueDate : startDate}
+              value={creditMode === "existing" || isEditing ? nextDueDate : startDate}
               onChange={(event) =>
-                creditMode === "existing" ? setNextDueDate(event.target.value) : setStartDate(event.target.value)
+                creditMode === "existing" || isEditing ? setNextDueDate(event.target.value) : setStartDate(event.target.value)
               }
             />
           </label>
-          {creditMode === "existing" ? (
+          {creditMode === "existing" && !isEditing ? (
             <>
               <NumberField label="Cuotas ya pagadas" value={paidInstallments} onChange={setPaidInstallments} />
               <NumberField label="Saldo actual pendiente" value={balanceForExisting} onChange={setCurrentBalance} />
             </>
+          ) : null}
+          {isEditing ? (
+            <div className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              Al guardar se mantienen los pagos registrados. Las cuotas pendientes se recalculan desde el siguiente vencimiento indicado.
+            </div>
           ) : null}
           <div className="md:col-span-2">
             <span className="text-sm font-medium text-slate-700">Frecuencia</span>
@@ -204,7 +264,7 @@ export function CreditFormPage() {
             <Row label="Interes" value={formatCurrency(totals.interestAmount)} />
             <Row label="Total a cobrar" value={formatCurrency(totals.totalAmount)} strong />
             <Row label="Valor de cuota" value={formatCurrency(installmentValue)} strong />
-            {creditMode === "existing" ? (
+            {creditMode === "existing" || isEditing ? (
               <>
                 <Row label="Ya pagado" value={formatCurrency(initialPaidAmount)} />
                 <Row label="Saldo actual" value={formatCurrency(balanceForExisting)} strong />
@@ -214,7 +274,7 @@ export function CreditFormPage() {
             <Row label="Ultimo vencimiento" value={formatDate(getFinalDueDate(previewInstallments) || startDate)} />
           </div>
           <Button className="mt-5 w-full" type="submit" disabled={!clients.length}>
-            Confirmar credito
+            {isEditing ? "Guardar cambios" : "Confirmar credito"}
           </Button>
         </aside>
       </form>

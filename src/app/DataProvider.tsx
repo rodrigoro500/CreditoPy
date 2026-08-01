@@ -17,6 +17,7 @@ interface DataContextValue extends DataState {
   error: string;
   addClient: (client: Client) => Promise<void>;
   addCredit: (credit: Credit, customInstallments?: Installment[], initialPayment?: Payment) => Promise<void>;
+  updateCredit: (credit: Credit, installments: Installment[]) => Promise<void>;
   addPayment: (payment: Payment) => Promise<void>;
   addExtensionInterestPayment: (payment: Payment, fromInstallmentNumber: number) => Promise<void>;
   getPaidByCredit: (creditId: string) => number;
@@ -236,6 +237,80 @@ export function DataProvider({ children }: { children: ReactNode }) {
           payments: initialPayment ? [initialPayment, ...data.payments] : data.payments
         });
       },
+      updateCredit: async (credit, installments) => {
+        if (shouldUseSupabase && supabase && user) {
+          const { data: updatedCredit, error: creditError } = await supabase
+            .from("credits")
+            .update({
+              client_id: credit.clientId,
+              type: credit.type,
+              product_name: credit.productName ?? null,
+              product_description: credit.productDescription ?? null,
+              amount: credit.amount,
+              interest_percent: credit.interestPercent,
+              interest_amount: credit.interestAmount,
+              total_amount: credit.totalAmount,
+              installments: credit.installments,
+              installment_value: credit.installmentValue,
+              frequency: credit.frequency,
+              collection_day: credit.collectionDay ?? null,
+              start_date: credit.startDate,
+              due_date: credit.dueDate,
+              status: credit.status
+            })
+            .eq("id", credit.id)
+            .select("*")
+            .single();
+
+          if (creditError) throw creditError;
+
+          const normalizedInstallments = installments.map((installment) => ({
+            ...installment,
+            userId: user.id,
+            creditId: credit.id,
+            id: `${credit.id}-quota-${installment.number}`
+          }));
+
+          const { data: upsertedInstallments, error: installmentsError } = await supabase
+            .from("installments")
+            .upsert(
+              normalizedInstallments.map((installment) => ({
+                id: installment.id,
+                user_id: user.id,
+                credit_id: credit.id,
+                number: installment.number,
+                amount: installment.amount,
+                due_date: installment.dueDate,
+                status: installment.status
+              })),
+              { onConflict: "id" }
+            )
+            .select("*");
+
+          if (installmentsError) throw installmentsError;
+
+          setData((current) => {
+            const nextCredit = {
+              ...mapCreditFromDb(updatedCredit),
+              clientName: credit.clientName
+            };
+            const otherInstallments = current.installments.filter((item) => item.creditId !== credit.id);
+
+            return {
+              ...current,
+              credits: current.credits.map((item) => (item.id === credit.id ? nextCredit : item)),
+              installments: [...(upsertedInstallments ?? []).map(mapInstallmentFromDb), ...otherInstallments]
+            };
+          });
+          return;
+        }
+
+        persistLocal({
+          ...data,
+          credits: data.credits.map((item) => (item.id === credit.id ? credit : item)),
+          installments: [...installments, ...data.installments.filter((item) => item.creditId !== credit.id)]
+        });
+      },
       addPayment: async (payment) => {
         if (shouldUseSupabase && supabase && user) {
           const { data: inserted, error: insertError } = await supabase
@@ -329,7 +404,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
           .reduce((total, payment) => total + payment.amount, 0),
       getInstallmentsByCredit: (creditId) =>
         data.installments
-          .filter((installment) => installment.creditId === creditId)
+          .filter((installment) => {
+            const credit = data.credits.find((item) => item.id === creditId);
+            return installment.creditId === creditId && (!credit || installment.number <= credit.installments);
+          })
           .sort((a, b) => a.number - b.number),
       resetDemoData: () => persistLocal(defaultData),
       reloadData

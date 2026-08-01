@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Banknote, CalendarDays, CircleDollarSign, TrendingUp, Users } from "lucide-react";
+import { Banknote, CalendarDays, CircleDollarSign, ClipboardList, TrendingUp, Users } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { StatCard } from "../../components/ui/StatCard";
 import { useDataStore } from "../../app/DataProvider";
@@ -45,14 +45,22 @@ export function ReportsPage() {
         <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
           <div>
             <h2 className="font-bold">Resumen de saldo</h2>
-            <p className="text-sm text-slate-500">Tambien podes abrir una planilla diaria para salir a cobrar.</p>
+            <p className="text-sm text-slate-500">Tambien podes abrir planillas para cobrar o revisar toda la cartera.</p>
           </div>
-          <Link to="/reportes/cobranza">
-            <Button variant="secondary">
-              <CalendarDays className="h-4 w-4" />
-              Reporte de cobranza
-            </Button>
-          </Link>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Link to="/reportes/saldos">
+              <Button variant="secondary">
+                <ClipboardList className="h-4 w-4" />
+                Saldos y cuotas
+              </Button>
+            </Link>
+            <Link to="/reportes/cobranza">
+              <Button variant="secondary">
+                <CalendarDays className="h-4 w-4" />
+                Reporte de cobranza
+              </Button>
+            </Link>
+          </div>
         </div>
         <div className="mt-4 h-4 overflow-hidden rounded-full bg-slate-100">
           <div className="h-full bg-brand-600" style={{ width: `${Math.round((paid / (paid + pending)) * 100)}%` }} />

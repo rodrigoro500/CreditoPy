@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { useDataStore } from "../../app/DataProvider";
@@ -48,7 +48,15 @@ export function CreditsPage() {
                     Vencimiento final: {formatDate(credit.dueDate)}
                   </p>
                 </div>
-                <StatusBadge status={credit.status === "late" ? "late" : "active"} />
+                <div className="flex items-center gap-2">
+                  <Link to={`/creditos/${credit.id}/editar`}>
+                    <Button variant="secondary">
+                      <Pencil className="h-4 w-4" />
+                      Editar
+                    </Button>
+                  </Link>
+                  <StatusBadge status={credit.status === "late" ? "late" : "active"} />
+                </div>
               </div>
 
               <div className="mt-4 grid gap-3 md:grid-cols-4">

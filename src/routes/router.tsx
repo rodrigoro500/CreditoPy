@@ -16,6 +16,7 @@ import { FixedSaleFormPage } from "../features/fixed-sales/FixedSaleFormPage";
 import { FixedSalesPage } from "../features/fixed-sales/FixedSalesPage";
 import { PaymentFormPage } from "../features/payments/PaymentFormPage";
 import { PlansPage } from "../features/plans/PlansPage";
+import { BalancesReportPage } from "../features/reports/BalancesReportPage";
 import { CollectionReportPage } from "../features/reports/CollectionReportPage";
 import { ReportsPage } from "../features/reports/ReportsPage";
 
@@ -43,6 +44,7 @@ export const router = createBrowserRouter([
               { path: "pagos/nuevo", element: <PaymentFormPage /> },
               { path: "vencimientos", element: <DueDatesPage /> },
               { path: "reportes", element: <ReportsPage /> },
+              { path: "reportes/saldos", element: <BalancesReportPage /> },
               { path: "reportes/cobranza", element: <CollectionReportPage /> }
             ]
           },
