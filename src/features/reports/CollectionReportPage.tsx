@@ -14,12 +14,17 @@ import {
 import { formatCurrency, formatDate } from "../../lib/format";
 import type { Weekday } from "../../types/domain";
 
+type CollectionDayFilter = Weekday | "all";
+
 export function CollectionReportPage() {
   const { credits, payments, getPaidByCredit } = useDataStore();
-  const [selectedDay, setSelectedDay] = useState<Weekday>("monday");
+  const [selectedDay, setSelectedDay] = useState<CollectionDayFilter>("monday");
   const [selectedDate, setSelectedDate] = useState("2026-07-27");
 
-  const rows = useMemo(() => getCollectionCreditsByWeekday(credits, selectedDay), [selectedDay]);
+  const rows = useMemo(
+    () => (selectedDay === "all" ? credits.filter((credit) => credit.status !== "paid") : getCollectionCreditsByWeekday(credits, selectedDay)),
+    [credits, selectedDay]
+  );
   const totalExpected = rows.reduce((sum, credit) => sum + credit.installmentValue, 0);
   const totalCollectedToday = rows.reduce(
     (sum, credit) => sum + getPaidByCreditOnDate(payments, credit.id, selectedDate),
@@ -42,7 +47,18 @@ export function CollectionReportPage() {
       <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-soft lg:grid-cols-[1fr_220px]">
         <div>
           <p className="mb-2 text-sm font-medium text-slate-700">Dia de cobranza</p>
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-7">
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-8">
+            <button
+              className={`h-10 rounded-md border text-sm font-semibold ${
+                selectedDay === "all"
+                  ? "border-brand-600 bg-brand-50 text-brand-700"
+                  : "border-slate-200 bg-white text-slate-600"
+              }`}
+              type="button"
+              onClick={() => setSelectedDay("all")}
+            >
+              Todos
+            </button>
             {weekdays.map((day) => (
               <button
                 key={day.value}
@@ -80,7 +96,11 @@ export function CollectionReportPage() {
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-soft">
         <div className="border-b border-slate-200 p-4">
           <h2 className="font-bold">Planilla del {formatDate(selectedDate)}</h2>
-          <p className="text-sm text-slate-500">Incluye solo creditos asignados al dia seleccionado.</p>
+          <p className="text-sm text-slate-500">
+            {selectedDay === "all"
+              ? "Incluye todos los creditos activos, sin filtrar por dia."
+              : "Incluye solo creditos asignados al dia seleccionado."}
+          </p>
         </div>
 
         <div className="overflow-x-auto">
