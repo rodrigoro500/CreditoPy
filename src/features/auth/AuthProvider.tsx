@@ -63,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setLoading(true);
       setSession(nextSession);
       if (nextSession?.user) {
         loadProfile(nextSession.user.id).finally(() => setLoading(false));
@@ -84,8 +85,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAdmin: profile?.role === "admin" && profile.approval_status === "approved",
       signIn: async (email, password) => {
         if (!supabase) throw new Error("Supabase no esta configurado.");
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        setLoading(true);
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          setLoading(false);
+          throw error;
+        }
+        setSession(data.session);
+        if (data.session?.user) {
+          await loadProfile(data.session.user.id);
+        }
+        setLoading(false);
       },
       signUp: async (fullName, email, password) => {
         if (!supabase) throw new Error("Supabase no esta configurado.");
