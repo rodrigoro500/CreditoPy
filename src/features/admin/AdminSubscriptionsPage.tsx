@@ -85,7 +85,11 @@ export function AdminSubscriptionsPage() {
     await loadSubscriptions();
   }
 
-  const dueSoon = subscriptions.filter((subscription) => getDaysLeft(subscription.expires_at) <= 5).length;
+  const trialUsers = subscriptions.filter(isTrialSubscription).length;
+  const paidUsers = subscriptions.filter((subscription) => !isTrialSubscription(subscription)).length;
+  const dueSoon = subscriptions.filter(
+    (subscription) => !isTrialSubscription(subscription) && getDaysLeft(subscription.expires_at) <= 5
+  ).length;
   const expired = subscriptions.filter((subscription) => getDaysLeft(subscription.expires_at) < 0).length;
 
   return (
@@ -103,8 +107,10 @@ export function AdminSubscriptionsPage() {
 
       {message ? <p className="rounded-md bg-brand-50 px-3 py-2 text-sm text-brand-700">{message}</p> : null}
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-4">
         <Summary label="Usuarios con plan" value={String(subscriptions.length)} />
+        <Summary label="Prueba gratis" value={String(trialUsers)} tone="blue" />
+        <Summary label="Planes pagados" value={String(paidUsers)} />
         <Summary label="Vencen en 5 dias" value={String(dueSoon)} tone="yellow" />
         <Summary label="Vencidos" value={String(expired)} tone="red" />
       </section>
@@ -157,7 +163,7 @@ export function AdminSubscriptionsPage() {
                     <td className="px-4 py-3">{subscription.paid_at ? formatDate(subscription.paid_at) : "Prueba gratis"}</td>
                     <td className="px-4 py-3">{formatDate(subscription.expires_at)}</td>
                     <td className="px-4 py-3">
-                      <Status daysLeft={daysLeft} />
+                      <Status daysLeft={daysLeft} isTrial={isTrialSubscription(subscription)} />
                     </td>
                     <td className="px-4 py-3">
                       <Button type="button" variant="secondary" onClick={() => renewSubscription(subscription)}>
@@ -181,9 +187,17 @@ function getDaysLeft(expiresAt: string) {
   return Math.ceil((expires.getTime() - today.getTime()) / oneDayMs);
 }
 
-function Status({ daysLeft }: { daysLeft: number }) {
+function isTrialSubscription(subscription: SubscriptionRow) {
+  return !subscription.paid_at && Number(subscription.monthly_total) === 0;
+}
+
+function Status({ daysLeft, isTrial }: { daysLeft: number; isTrial: boolean }) {
   if (daysLeft < 0) {
     return <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">Vencido</span>;
+  }
+
+  if (isTrial) {
+    return <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">Prueba: {daysLeft} dias</span>;
   }
 
   if (daysLeft <= 5) {
@@ -193,9 +207,10 @@ function Status({ daysLeft }: { daysLeft: number }) {
   return <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">Activo</span>;
 }
 
-function Summary({ label, value, tone = "green" }: { label: string; value: string; tone?: "green" | "yellow" | "red" }) {
+function Summary({ label, value, tone = "green" }: { label: string; value: string; tone?: "green" | "yellow" | "red" | "blue" }) {
   const styles = {
     green: "text-brand-700 bg-brand-50",
+    blue: "text-blue-700 bg-blue-50",
     yellow: "text-amber-700 bg-amber-50",
     red: "text-red-700 bg-red-50"
   };
