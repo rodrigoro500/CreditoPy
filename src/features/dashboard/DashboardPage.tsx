@@ -106,10 +106,10 @@ export function DashboardPage() {
       </section>
 
       <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <MobileMetric label="Cartera activa" value={formatCurrency(totalPortfolio)} detail="Ver detalles" icon={<WalletCards className="h-7 w-7" />} tone="green" />
-        <MobileMetric label="Cobrado este mes" value={formatCurrency(totalPaid)} detail="Ver detalles" icon={<CircleDollarSign className="h-7 w-7" />} tone="blue" />
-        <MobileMetric label="Saldo pendiente" value={formatCurrency(pendingBalance)} detail="Ver detalles" icon={<CalendarDays className="h-7 w-7" />} tone="yellow" />
-        <MobileMetric label="Clientes atrasados" value={String(lateCount)} detail="Ver detalles" icon={<Users className="h-7 w-7" />} tone="red" />
+        <MobileMetric label="Cartera activa" value={formatCurrency(totalPortfolio)} detail="Ver detalles" to="/reportes/saldos" icon={<WalletCards className="h-7 w-7" />} tone="green" />
+        <MobileMetric label="Cobrado este mes" value={formatCurrency(totalPaid)} detail="Ver detalles" to="/reportes" icon={<CircleDollarSign className="h-7 w-7" />} tone="blue" />
+        <MobileMetric label="Saldo pendiente" value={formatCurrency(pendingBalance)} detail="Ver detalles" to="/reportes/saldos" icon={<CalendarDays className="h-7 w-7" />} tone="yellow" />
+        <MobileMetric label="Clientes atrasados" value={String(lateCount)} detail="Ver detalles" to="/vencimientos?estado=atrasados" icon={<Users className="h-7 w-7" />} tone="red" />
       </section>
 
       <section className="space-y-4">
@@ -192,12 +192,14 @@ function MobileMetric({
   label,
   value,
   detail,
+  to,
   icon,
   tone
 }: {
   label: string;
   value: string;
   detail: string;
+  to: string;
   icon: ReactNode;
   tone: "green" | "blue" | "yellow" | "red";
 }) {
@@ -209,14 +211,14 @@ function MobileMetric({
   };
 
   return (
-    <div className={`min-h-[128px] rounded-xl border p-3 shadow-sm sm:min-h-[142px] ${tones[tone]}`}>
+    <Link className={`block min-h-[128px] rounded-xl border p-3 shadow-sm sm:min-h-[142px] ${tones[tone]}`} to={to}>
       <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-white/70 [&>svg]:h-6 [&>svg]:w-6">{icon}</div>
       <p className="text-xs font-medium text-slate-700 sm:text-sm">{label}</p>
       <p className="mt-1 break-words text-[16px] font-extrabold leading-tight text-ink sm:text-[17px]">{value}</p>
       <p className={`mt-2 inline-flex items-center gap-1 text-xs font-bold sm:text-sm ${tone === "red" ? "text-red-600" : "text-brand-700"}`}>
         {detail} <ChevronRight className="h-4 w-4" />
       </p>
-    </div>
+    </Link>
   );
 }
 
