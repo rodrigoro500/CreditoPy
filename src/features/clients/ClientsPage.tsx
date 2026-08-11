@@ -30,9 +30,17 @@ export function ClientsPage() {
 
       <section className="grid gap-4 md:grid-cols-2">
         {clients.map((client) => {
-          const activeCredit = credits.find((credit) => credit.clientId === client.id);
-          const paid = activeCredit ? getPaidByCredit(activeCredit.id) : 0;
-          const balance = activeCredit ? activeCredit.totalAmount - paid : 0;
+          const clientCredits = credits.filter((credit) => credit.clientId === client.id);
+          const activeCredit = clientCredits.find((credit) => credit.totalAmount - getPaidByCredit(credit.id) > 0);
+          const lastCredit = activeCredit ?? clientCredits[0];
+          const paid = lastCredit ? getPaidByCredit(lastCredit.id) : 0;
+          const balance = lastCredit ? Math.max(0, lastCredit.totalAmount - paid) : 0;
+          const status = activeCredit?.status === "late" ? "late" : activeCredit ? "active" : "paid";
+          const creditLabel = activeCredit
+            ? formatCurrency(activeCredit.totalAmount)
+            : lastCredit
+              ? "Credito finalizado"
+              : "Sin credito creado";
 
           return (
             <article key={client.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
@@ -41,26 +49,36 @@ export function ClientsPage() {
                   <h2 className="font-bold">{client.fullName}</h2>
                   <p className="text-sm text-slate-500">{client.phone}</p>
                 </div>
-                <StatusBadge status={activeCredit?.status === "late" ? "late" : activeCredit ? "active" : "paid"} />
+                <StatusBadge status={status} />
               </div>
               <div className="grid gap-2 text-sm">
                 <p>
                   <span className="text-slate-500">Credito activo:</span>{" "}
-                  {activeCredit ? formatCurrency(activeCredit.totalAmount) : "Sin credito activo"}
+                  {creditLabel}
                 </p>
                 <p>
                   <span className="text-slate-500">Saldo:</span> {formatCurrency(balance)}
                 </p>
               </div>
               <div className="mt-4 flex gap-2">
-                <Link className="flex-1" to="/creditos">
-                  <Button className="w-full" variant="secondary">
-                    Ver credito
-                  </Button>
-                </Link>
-                <Link className="flex-1" to="/pagos/nuevo">
-                  <Button className="w-full">Registrar pago</Button>
-                </Link>
+                {activeCredit ? (
+                  <>
+                    <Link className="flex-1" to="/creditos">
+                      <Button className="w-full" variant="secondary">
+                        Ver credito
+                      </Button>
+                    </Link>
+                    <Link className="flex-1" to="/pagos/nuevo">
+                      <Button className="w-full">Registrar pago</Button>
+                    </Link>
+                  </>
+                ) : (
+                  <Link className="flex-1" to="/creditos/nuevo">
+                    <Button className="w-full">
+                      Crear credito
+                    </Button>
+                  </Link>
+                )}
               </div>
             </article>
           );
