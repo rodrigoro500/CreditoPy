@@ -113,6 +113,41 @@ export function PaymentFormPage() {
               onChange={(event) => setSearch(event.target.value)}
             />
           </label>
+          {search.trim() ? (
+            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+              {filteredCredits.length ? (
+                filteredCredits.slice(0, 8).map((item) => {
+                  const itemPaid = getPaidByCredit(item.id);
+                  const itemBalance = Math.max(0, item.totalAmount - itemPaid);
+                  return (
+                    <button
+                      key={item.id}
+                      className={`flex w-full items-center justify-between gap-3 border-b border-slate-100 px-3 py-3 text-left last:border-b-0 ${
+                        item.id === creditId ? "bg-brand-50" : "bg-white"
+                      }`}
+                      type="button"
+                      onClick={() => {
+                        handleCreditChange(item.id);
+                        setSearch(getClientShortName(item.clientName));
+                      }}
+                    >
+                      <span>
+                        <span className="block font-bold text-ink">{getClientShortName(item.clientName)}</span>
+                        <span className="block text-sm text-slate-500">
+                          Cuota {formatCurrency(item.installmentValue)}
+                        </span>
+                      </span>
+                      <span className="text-right text-sm font-semibold text-brand-700">
+                        Saldo {formatCurrency(itemBalance)}
+                      </span>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="px-3 py-3 text-sm text-slate-500">No se encontraron creditos con ese nombre.</div>
+              )}
+            </div>
+          ) : null}
 
           <fieldset>
             <legend className="text-sm font-medium text-slate-700">Tipo de registro</legend>
@@ -131,13 +166,10 @@ export function PaymentFormPage() {
           <label className="block">
             <span className="text-sm font-medium text-slate-700">Credito</span>
             <select className="mt-1 h-11 w-full rounded-md border border-slate-300 px-3" value={creditId} onChange={(event) => handleCreditChange(event.target.value)}>
-              {filteredCredits.map((item) => (
+              {credits.map((item) => (
                 <option key={item.id} value={item.id}>{getClientShortName(item.clientName)}</option>
               ))}
             </select>
-            {!filteredCredits.length ? (
-              <p className="mt-1 text-sm text-slate-500">No se encontraron creditos con ese nombre.</p>
-            ) : null}
           </label>
           <label className="block">
             <span className="text-sm font-medium text-slate-700">Monto recibido</span>

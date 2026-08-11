@@ -104,11 +104,10 @@ export function CollectionReportPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] border-collapse text-sm">
+          <table className="w-full min-w-[720px] border-collapse text-sm">
             <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
               <tr>
                 <th className="px-4 py-3">Cliente</th>
-                <th className="px-4 py-3">Producto / credito</th>
                 <th className="px-4 py-3">Cuotas</th>
                 <th className="px-4 py-3">Monto cuota</th>
                 <th className="px-4 py-3">Saldo actual</th>
@@ -128,7 +127,6 @@ export function CollectionReportPage() {
                 return (
                   <tr key={credit.id}>
                     <td className="px-4 py-3 font-semibold">{credit.clientName}</td>
-                    <td className="px-4 py-3 text-slate-600">{credit.productName ?? credit.id}</td>
                     <td className="px-4 py-3">{paidInstallments}/{credit.installments}</td>
                     <td className="px-4 py-3">{formatCurrency(credit.installmentValue)}</td>
                     <td className="px-4 py-3 font-semibold">{formatCurrency(balance)}</td>
