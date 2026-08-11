@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { BarChart3, CalendarDays, CreditCard, Gem, Home, LogOut, Menu, ReceiptText, ShieldCheck, Sparkles, Users, WalletCards } from "lucide-react";
+import { BarChart3, Bell, CalendarDays, CreditCard, Gem, Home, LogOut, Menu, ReceiptText, ShieldCheck, Sparkles, Users, WalletCards } from "lucide-react";
 import { useAuth } from "../../features/auth/AuthProvider";
 import { SubscriptionNotice } from "./SubscriptionNotice";
 
@@ -23,6 +23,15 @@ export function AppLayout() {
   const visibleNavigation = navigation.filter((item) =>
     isAdmin ? adminRoutes.has(item.href) : item.href !== "/admin/usuarios"
   );
+  const mobileNavigation = isAdmin
+    ? visibleNavigation.slice(0, 5)
+    : [
+        navigation[0],
+        navigation[1],
+        navigation[4],
+        navigation[2],
+        { label: "Mas", href: "/reportes", icon: Sparkles }
+      ];
 
   async function handleSignOut() {
     await signOut();
@@ -61,17 +70,22 @@ export function AppLayout() {
       </aside>
 
       <div className="lg:pl-64">
-        <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-8">
-          <div className="flex items-center gap-3">
-            <Menu className="h-5 w-5 lg:hidden" />
-            <div>
-              <p className="font-bold">CreditoPy</p>
-              <p className="text-xs text-slate-500">
+        <header className="sticky top-0 z-10 flex h-[86px] items-center justify-between border-b border-slate-100 bg-white px-5 shadow-sm lg:h-16 lg:px-8">
+          <button className="inline-flex h-10 w-10 items-center justify-center rounded-md text-ink lg:hidden" type="button" title="Menu">
+            <Menu className="h-7 w-7" />
+          </button>
+
+          <div className="absolute left-1/2 -translate-x-1/2 text-center lg:static lg:translate-x-0 lg:text-left">
+            <p className="text-3xl font-extrabold leading-tight tracking-normal lg:text-base lg:font-bold">CreditoPy</p>
+            <p className="text-sm text-slate-500 lg:text-xs">
+              <span className="lg:hidden">Control de Creditos</span>
+              <span className="hidden lg:inline">
                 {profile ? `${profile.full_name} - ${profile.role === "admin" ? "Administrador" : "Usuario"}` : "Cuenta privada"}
-              </p>
-            </div>
+              </span>
+            </p>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="hidden items-center gap-2 lg:flex">
             <div className="rounded-full bg-brand-50 px-3 py-1.5 text-sm font-semibold text-brand-700">
               {profile?.role === "admin" ? "Admin" : "Plan"}
             </div>
@@ -84,27 +98,50 @@ export function AppLayout() {
               <LogOut className="h-4 w-4" />
             </button>
           </div>
+
+          <div className="relative lg:hidden">
+            <Bell className="h-7 w-7 text-ink" />
+            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-bold text-white">
+              3
+            </span>
+          </div>
         </header>
 
-        <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-24 lg:px-8">
+        <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-28 lg:px-8">
           <SubscriptionNotice />
           <Outlet />
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-slate-200 bg-white lg:hidden">
-        {visibleNavigation.slice(0, 5).map((item) => (
+      <nav className="fixed inset-x-0 bottom-0 z-20 grid h-[82px] grid-cols-5 rounded-t-md bg-ink px-2 pb-2 pt-2 text-white shadow-[0_-12px_30px_rgba(20,33,61,0.18)] lg:hidden">
+        {mobileNavigation.map((item) => (
           <NavLink
             key={item.href}
             to={item.href}
             className={({ isActive }) =>
-              `flex flex-col items-center gap-1 px-1 py-2 text-[11px] font-medium ${
-                isActive ? "text-brand-700" : "text-slate-500"
+              `relative flex flex-col items-center justify-center gap-1 px-1 text-[11px] font-semibold ${
+                item.href === "/pagos/nuevo"
+                  ? "-mt-8"
+                  : isActive
+                    ? "text-brand-500"
+                    : "text-slate-300"
               }`
             }
           >
-            <item.icon className="h-5 w-5" />
-            <span>{item.label}</span>
+            {({ isActive }) => (
+              <>
+                <span
+                  className={
+                    item.href === "/pagos/nuevo"
+                      ? "flex h-16 w-16 items-center justify-center rounded-full bg-brand-500 text-white shadow-lg"
+                      : ""
+                  }
+                >
+                  <item.icon className={`${item.href === "/pagos/nuevo" ? "h-8 w-8" : "h-6 w-6"} ${isActive && item.href !== "/pagos/nuevo" ? "fill-current" : ""}`} />
+                </span>
+                <span className={item.href === "/pagos/nuevo" ? "mt-1 text-slate-200" : ""}>{item.label}</span>
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
