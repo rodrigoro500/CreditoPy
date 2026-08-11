@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Pencil, Plus } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { StatusBadge } from "../../components/ui/StatusBadge";
@@ -6,9 +6,24 @@ import { useDataStore } from "../../app/DataProvider";
 import { formatCurrency, formatDate } from "../../lib/format";
 import { frequencyLabel } from "../../lib/credit-calculator";
 import { getNextInstallment, getPaidInstallmentCount } from "../../lib/installments";
+import type { CreditFrequency } from "../../types/domain";
+
+type FrequencyFilter = CreditFrequency | "all";
+
+const frequencyFilters: { value: FrequencyFilter; label: string }[] = [
+  { value: "all", label: "Todos" },
+  { value: "daily", label: "Diarios" },
+  { value: "weekly", label: "Semanales" },
+  { value: "biweekly", label: "Quincenales" },
+  { value: "monthly", label: "Mensuales" }
+];
 
 export function CreditsPage() {
   const { credits, getPaidByCredit, getInstallmentsByCredit } = useDataStore();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedFrequency = normalizeFrequency(searchParams.get("frecuencia"));
+  const filteredCredits =
+    selectedFrequency === "all" ? credits : credits.filter((credit) => credit.frequency === selectedFrequency);
 
   return (
     <div className="space-y-5">
@@ -25,8 +40,31 @@ export function CreditsPage() {
         </Link>
       </section>
 
+      <section className="overflow-x-auto rounded-lg border border-slate-200 bg-white p-1 shadow-soft">
+        <div className="grid min-w-[560px] grid-cols-5 gap-1">
+          {frequencyFilters.map((filter) => {
+            const count = filter.value === "all" ? credits.length : credits.filter((credit) => credit.frequency === filter.value).length;
+            return (
+              <button
+                key={filter.value}
+                className={`min-h-11 rounded-md px-2 text-sm font-semibold ${
+                  selectedFrequency === filter.value ? "bg-brand-600 text-white" : "text-slate-600 hover:bg-slate-50"
+                }`}
+                type="button"
+                onClick={() =>
+                  setSearchParams(filter.value === "all" ? {} : { frecuencia: filter.value })
+                }
+              >
+                {filter.label}
+                <span className="ml-1 text-xs opacity-80">({count})</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
       <section className="grid gap-4">
-        {credits.map((credit) => {
+        {filteredCredits.map((credit) => {
           const paid = getPaidByCredit(credit.id);
           const balance = credit.totalAmount - paid;
           const progress = Math.min(100, Math.round((paid / credit.totalAmount) * 100));
@@ -92,9 +130,19 @@ export function CreditsPage() {
             </article>
           );
         })}
+        {!filteredCredits.length ? (
+          <div className="rounded-lg border border-slate-200 bg-white p-6 text-center text-sm text-slate-500 shadow-soft">
+            No hay creditos para este filtro.
+          </div>
+        ) : null}
       </section>
     </div>
   );
+}
+
+function normalizeFrequency(value: string | null): FrequencyFilter {
+  if (value === "daily" || value === "weekly" || value === "biweekly" || value === "monthly") return value;
+  return "all";
 }
 
 function Amount({ label, value, strong }: { label: string; value: number; strong?: boolean }) {
