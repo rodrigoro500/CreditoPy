@@ -6,7 +6,7 @@ import { useDataStore } from "../../app/DataProvider";
 import { formatCurrency } from "../../lib/format";
 
 export function ReportsPage() {
-  const { clients, credits, getPaidByCredit, resetDemoData } = useDataStore();
+  const { clients, credits, getPaidByCredit, isDemoMode, resetDemoData } = useDataStore();
   const amountLent = credits.reduce((sum, credit) => sum + credit.amount, 0);
   const interest = credits.reduce((sum, credit) => sum + credit.interestAmount, 0);
   const paid = credits.reduce((sum, credit) => sum + getPaidByCredit(credit.id), 0);
@@ -17,9 +17,11 @@ export function ReportsPage() {
       <div>
         <h1 className="text-2xl font-bold">Reportes</h1>
         <p className="text-slate-500">Indicadores base de cartera, recuperacion e intereses.</p>
-        <button className="mt-2 text-sm font-semibold text-brand-700" type="button" onClick={resetDemoData}>
-          Restaurar datos demo
-        </button>
+        {isDemoMode ? (
+          <button className="mt-2 text-sm font-semibold text-brand-700" type="button" onClick={resetDemoData}>
+            Restaurar datos demo
+          </button>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-4 rounded-lg border border-slate-200 bg-white p-1 shadow-soft">
@@ -63,7 +65,7 @@ export function ReportsPage() {
           </div>
         </div>
         <div className="mt-4 h-4 overflow-hidden rounded-full bg-slate-100">
-          <div className="h-full bg-brand-600" style={{ width: `${Math.round((paid / (paid + pending)) * 100)}%` }} />
+          <div className="h-full bg-brand-600" style={{ width: `${paid + pending > 0 ? Math.round((paid / (paid + pending)) * 100) : 0}%` }} />
         </div>
         <div className="mt-3 flex justify-between text-sm text-slate-600">
           <span>Cobrado {formatCurrency(paid)}</span>

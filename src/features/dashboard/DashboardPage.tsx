@@ -147,7 +147,7 @@ export function DashboardPage() {
                     </div>
                     <div className="min-w-0">
                       <p className="truncate text-lg font-extrabold leading-tight">{credit.clientName}</p>
-                      <p className="truncate text-sm text-slate-500">Credito N. {credit.id}</p>
+                      <p className="truncate text-sm text-slate-500">Credito N. {getShortCreditLabel(credit.id)}</p>
                       <p className={`mt-1 flex items-center gap-1 text-sm font-semibold ${credit.status === "late" ? "text-red-600" : "text-slate-500"}`}>
                         <Clock3 className="h-4 w-4" />
                         {credit.status === "late" ? "Atrasado" : "Vence hoy"}
@@ -209,11 +209,11 @@ function MobileMetric({
   };
 
   return (
-    <div className={`min-h-[150px] rounded-xl border p-3 shadow-sm ${tones[tone]}`}>
-      <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-white/70">{icon}</div>
-      <p className="text-sm font-medium text-slate-700">{label}</p>
-      <p className="mt-1 break-words text-[17px] font-extrabold leading-tight text-ink">{value}</p>
-      <p className={`mt-2 inline-flex items-center gap-1 text-sm font-bold ${tone === "red" ? "text-red-600" : "text-brand-700"}`}>
+    <div className={`min-h-[128px] rounded-xl border p-3 shadow-sm sm:min-h-[142px] ${tones[tone]}`}>
+      <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-white/70 [&>svg]:h-6 [&>svg]:w-6">{icon}</div>
+      <p className="text-xs font-medium text-slate-700 sm:text-sm">{label}</p>
+      <p className="mt-1 break-words text-[16px] font-extrabold leading-tight text-ink sm:text-[17px]">{value}</p>
+      <p className={`mt-2 inline-flex items-center gap-1 text-xs font-bold sm:text-sm ${tone === "red" ? "text-red-600" : "text-brand-700"}`}>
         {detail} <ChevronRight className="h-4 w-4" />
       </p>
     </div>
@@ -239,11 +239,15 @@ function QuickAction({
 
   return (
     <Link
-      className="flex min-h-[126px] flex-col items-center justify-center gap-3 rounded-xl border border-slate-100 bg-white p-3 text-center shadow-soft"
+      className="flex min-h-[104px] flex-col items-center justify-center gap-2 rounded-xl border border-slate-100 bg-white p-3 text-center shadow-soft sm:min-h-[118px]"
       to={to}
     >
-      <div className={tones[tone]}>{icon}</div>
-      <span className="text-base font-extrabold leading-tight text-ink">{label}</span>
+      <div className={`${tones[tone]} [&>svg]:h-8 [&>svg]:w-8`}>{icon}</div>
+      <span className="text-sm font-extrabold leading-tight text-ink sm:text-base">{label}</span>
     </Link>
   );
+}
+
+function getShortCreditLabel(id: string) {
+  return id.length > 14 ? `${id.slice(0, 10)}...` : id;
 }

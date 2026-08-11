@@ -15,6 +15,7 @@ interface DataState {
 interface DataContextValue extends DataState {
   loading: boolean;
   error: string;
+  isDemoMode: boolean;
   addClient: (client: Client) => Promise<void>;
   addCredit: (credit: Credit, customInstallments?: Installment[], initialPayment?: Payment) => Promise<void>;
   updateCredit: (credit: Credit, installments: Installment[]) => Promise<void>;
@@ -47,6 +48,8 @@ const DataContext = createContext<DataContextValue | null>(null);
 export function DataProvider({ children }: { children: ReactNode }) {
   const { user, profile } = useAuth();
   const [data, setData] = useState<DataState>(() => {
+    if (supabase) return emptyData;
+
     const saved = window.localStorage.getItem(storageKey);
     if (!saved) return defaultData;
 
@@ -115,6 +118,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (shouldUseSupabase) {
+      setData(emptyData);
       reloadData();
     }
   }, [shouldUseSupabase, user?.id, profile?.role]);
@@ -124,6 +128,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       ...data,
       loading,
       error,
+      isDemoMode: !shouldUseSupabase,
       addClient: async (client) => {
         if (shouldUseSupabase && supabase && user) {
           const { data: inserted, error: insertError } = await supabase
@@ -409,7 +414,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
             return installment.creditId === creditId && (!credit || installment.number <= credit.installments);
           })
           .sort((a, b) => a.number - b.number),
-      resetDemoData: () => persistLocal(defaultData),
+      resetDemoData: () => {
+        if (!shouldUseSupabase) persistLocal(defaultData);
+      },
       reloadData
     }),
     [data, error, loading, shouldUseSupabase, user?.id]

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDataStore } from "../../app/DataProvider";
@@ -18,13 +18,35 @@ export function PaymentFormPage() {
   const [paidAt, setPaidAt] = useState(todayInputValue());
   const [method, setMethod] = useState<PaymentMethod>("cash");
   const [paymentType, setPaymentType] = useState<PaymentType>("installment");
+  const [search, setSearch] = useState("");
 
   const credit = useMemo(() => credits.find((item) => item.id === creditId) ?? credits[0], [credits, creditId]);
+  const filteredCredits = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return credits;
+
+    return credits.filter((item) =>
+      [item.clientName, item.productName, item.id].filter(Boolean).some((value) => value!.toLowerCase().includes(query))
+    );
+  }, [credits, search]);
   const balance = credit ? credit.totalAmount - getPaidByCredit(credit.id) : 0;
   const paid = credit ? getPaidByCredit(credit.id) : 0;
   const installments = credit ? getInstallmentsByCredit(credit.id) : [];
   const paidInstallmentCount = credit ? getPaidInstallmentCount(credit, paid) : 0;
   const nextInstallment = credit ? getNextInstallment(installments, paidInstallmentCount) : undefined;
+
+  useEffect(() => {
+    if (!creditId && credits[0]) {
+      handleCreditChange(credits[0].id);
+    }
+  }, [creditId, credits]);
+
+  useEffect(() => {
+    if (!filteredCredits.length) return;
+    if (!filteredCredits.some((item) => item.id === creditId)) {
+      handleCreditChange(filteredCredits[0].id);
+    }
+  }, [creditId, filteredCredits]);
 
   function handleCreditChange(nextCreditId: string) {
     const nextCredit = credits.find((item) => item.id === nextCreditId);
@@ -81,6 +103,17 @@ export function PaymentFormPage() {
         ) : null}
 
         <div className="grid gap-4">
+          <label className="block">
+            <span className="text-sm font-medium text-slate-700">Buscar cliente</span>
+            <input
+              className="mt-1 h-11 w-full rounded-md border border-slate-300 px-3"
+              placeholder="Escribir nombre o apellido"
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </label>
+
           <fieldset>
             <legend className="text-sm font-medium text-slate-700">Tipo de registro</legend>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -98,10 +131,13 @@ export function PaymentFormPage() {
           <label className="block">
             <span className="text-sm font-medium text-slate-700">Credito</span>
             <select className="mt-1 h-11 w-full rounded-md border border-slate-300 px-3" value={creditId} onChange={(event) => handleCreditChange(event.target.value)}>
-              {credits.map((item) => (
-                <option key={item.id} value={item.id}>{item.clientName} - {item.productName ?? item.id}</option>
+              {filteredCredits.map((item) => (
+                <option key={item.id} value={item.id}>{getClientShortName(item.clientName)}</option>
               ))}
             </select>
+            {!filteredCredits.length ? (
+              <p className="mt-1 text-sm text-slate-500">No se encontraron creditos con ese nombre.</p>
+            ) : null}
           </label>
           <label className="block">
             <span className="text-sm font-medium text-slate-700">Monto recibido</span>
@@ -145,4 +181,9 @@ export function PaymentFormPage() {
       </form>
     </div>
   );
+}
+
+function getClientShortName(fullName: string) {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  return parts.slice(0, 2).join(" ") || fullName;
 }
