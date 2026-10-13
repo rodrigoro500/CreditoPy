@@ -2,6 +2,13 @@ import type { CreditFrequency, Weekday } from "../types/domain";
 
 const weekdayValues: Weekday[] = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
+function localDateValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function getWeekdayFromDate(date: string): Weekday {
   return weekdayValues[new Date(`${date}T00:00:00`).getDay()];
 }
@@ -15,9 +22,9 @@ export function addInstallmentPeriod(startDate: string, frequency: CreditFrequen
   if (frequency === "biweekly") date.setDate(date.getDate() + periods * 14);
   if (frequency === "monthly") date.setMonth(date.getMonth() + periods);
 
-  return date.toISOString().slice(0, 10);
+  return localDateValue(date);
 }
 
 export function todayInputValue() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateValue(new Date());
 }
