@@ -103,7 +103,7 @@ export function PaymentFormPage() {
       } else {
         await addPayment(payment);
       }
-      navigate("/vencimientos");
+      navigate("/vencimientos?estado=auto");
     } catch {
       setError("No se pudo registrar el pago. Revisá tu conexión e intentá nuevamente.");
     } finally {

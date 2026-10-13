@@ -9,7 +9,7 @@ const navigation = [
   { label: "Clientes", href: "/clientes", icon: Users },
   { label: "Creditos", href: "/creditos", icon: CreditCard },
   { label: "Ventas", href: "/ventas-cuotas", icon: Gem },
-  { label: "Cobros", href: "/pagos/nuevo", icon: WalletCards },
+  { label: "Cobros", href: "/vencimientos?estado=auto", icon: WalletCards },
   { label: "Vencimientos", href: "/vencimientos", icon: CalendarDays },
   { label: "Reportes", href: "/reportes", icon: BarChart3 },
   { label: "Planes", href: "/planes", icon: Sparkles },
@@ -133,7 +133,7 @@ export function AppLayout() {
             to={item.href}
             className={({ isActive }) =>
               `relative flex flex-col items-center justify-center gap-1 px-1 text-[11px] font-semibold ${
-                item.href === "/pagos/nuevo"
+                item.label === "Cobros"
                   ? "-mt-8"
                   : isActive
                     ? "text-brand-500"
@@ -145,14 +145,14 @@ export function AppLayout() {
               <>
                 <span
                   className={
-                    item.href === "/pagos/nuevo"
+                    item.label === "Cobros"
                       ? "flex h-16 w-16 items-center justify-center rounded-full bg-brand-500 text-white shadow-lg"
                       : ""
                   }
                 >
-                  <item.icon className={`${item.href === "/pagos/nuevo" ? "h-8 w-8" : "h-6 w-6"} ${isActive && item.href !== "/pagos/nuevo" ? "fill-current" : ""}`} />
+                  <item.icon className={`${item.label === "Cobros" ? "h-8 w-8" : "h-6 w-6"} ${isActive && item.label !== "Cobros" ? "fill-current" : ""}`} />
                 </span>
-                <span className={item.href === "/pagos/nuevo" ? "mt-1 text-slate-200" : ""}>{item.label}</span>
+                <span className={item.label === "Cobros" ? "mt-1 text-slate-200" : ""}>{item.label}</span>
               </>
             )}
           </NavLink>

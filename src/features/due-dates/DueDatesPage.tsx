@@ -4,6 +4,7 @@ import { useDataStore } from "../../app/DataProvider";
 import { useToday } from "../../lib/use-today";
 import { formatCurrency, formatDate } from "../../lib/format";
 import { getPaidInstallmentCount } from "../../lib/installments";
+import { chooseCollectionFilter } from "../../lib/collection-filter";
 
 type DueFilter = "today" | "upcoming" | "late";
 const dueTabs: { value: DueFilter; label: string }[] = [
@@ -21,8 +22,15 @@ function daysBetween(from: string, to: string) {
 export function DueDatesPage() {
   const { credits, getPaidByCredit, getInstallmentsByCredit } = useDataStore();
   const [searchParams, setSearchParams] = useSearchParams();
-  const selectedFilter = normalizeFilter(searchParams.get("estado"));
   const today = useToday();
+  const requestedFilter = searchParams.get("estado");
+  const pendingDates = requestedFilter === "auto" ? credits.flatMap((credit) => {
+    const paid = getPaidByCredit(credit.id);
+    if (paid >= credit.totalAmount) return [];
+    const paidCount = getPaidInstallmentCount(credit, paid);
+    return getInstallmentsByCredit(credit.id).filter((item) => item.number > paidCount).map((item) => item.dueDate);
+  }) : [];
+  const selectedFilter = requestedFilter === "auto" ? chooseCollectionFilter(pendingDates, today) : normalizeFilter(requestedFilter);
 
   const rows = credits.flatMap((credit) => {
     const paid = getPaidByCredit(credit.id);
@@ -57,6 +65,7 @@ export function DueDatesPage() {
         <h1 className="text-2xl font-bold">{selectedFilter === "today" ? "Planilla de cobranzas del día" : "Cobranza y vencimientos"}</h1>
         <p className="text-slate-500">{selectedFilter === "today" ? `${formatDate(today)} · Seleccioná Registrar pago en el cliente que vas a cobrar.` : "Consultá los próximos cobros y los créditos atrasados."}</p>
       </div>
+      {requestedFilter === "auto" && selectedFilter === "late" && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">No hay cuotas pendientes que venzan hoy. Estos clientes tienen cuotas vencidas que podés cobrar.</p>}
       <div className="grid grid-cols-3 rounded-lg border border-slate-200 bg-white p-1 shadow-soft">
         {dueTabs.map((tab) => (
           <button key={tab.value} type="button"
