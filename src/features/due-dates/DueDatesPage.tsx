@@ -54,8 +54,8 @@ export function DueDatesPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold">Cobranza y vencimientos</h1>
-        <p className="text-slate-500">Consultá los cobros del día y los créditos atrasados.</p>
+        <h1 className="text-2xl font-bold">{selectedFilter === "today" ? "Planilla de cobranzas del día" : "Cobranza y vencimientos"}</h1>
+        <p className="text-slate-500">{selectedFilter === "today" ? `${formatDate(today)} · Seleccioná Registrar pago en el cliente que vas a cobrar.` : "Consultá los próximos cobros y los créditos atrasados."}</p>
       </div>
       <div className="grid grid-cols-3 rounded-lg border border-slate-200 bg-white p-1 shadow-soft">
         {dueTabs.map((tab) => (

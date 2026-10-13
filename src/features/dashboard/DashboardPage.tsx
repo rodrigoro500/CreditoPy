@@ -21,6 +21,7 @@ import { useDataStore } from "../../app/DataProvider";
 import { formatCurrency } from "../../lib/format";
 import { currentCreditStatus } from "../../lib/credit-status";
 import { useToday } from "../../lib/use-today";
+import { getPaidInstallmentCount } from "../../lib/installments";
 
 export function DashboardPage() {
   const { isAdmin, profile } = useAuth();
@@ -38,7 +39,14 @@ export function DashboardPage() {
     month: "long",
     year: "numeric"
   }).format(new Date());
-  const recentCredits = credits.slice(0, 3);
+  const todayCredits = credits.filter((credit) => {
+    const paid = getPaidByCredit(credit.id);
+    return paid < credit.totalAmount && getInstallmentsByCredit(credit.id).some(
+      (quota) => quota.number > getPaidInstallmentCount(credit, paid) && quota.dueDate === today
+    );
+  });
+  const todayClientCount = new Set(todayCredits.map((credit) => credit.clientId)).size;
+  const recentCredits = todayCredits.slice(0, 3);
 
   if (isAdmin) {
     return (
@@ -113,7 +121,7 @@ export function DashboardPage() {
         <MobileMetric label="Cartera activa" value={formatCurrency(totalPortfolio)} detail="Ver detalles" to="/reportes/saldos" icon={<WalletCards className="h-7 w-7" />} tone="green" />
         <MobileMetric label="Cobrado este mes" value={formatCurrency(totalPaid)} detail="Ver detalles" to="/reportes" icon={<CircleDollarSign className="h-7 w-7" />} tone="blue" />
         <MobileMetric label="Saldo pendiente" value={formatCurrency(pendingBalance)} detail="Ver detalles" to="/reportes/saldos" icon={<CalendarDays className="h-7 w-7" />} tone="yellow" />
-        <MobileMetric label="Clientes atrasados" value={String(lateCount)} detail="Ver detalles" to="/vencimientos?estado=atrasados" icon={<Users className="h-7 w-7" />} tone="red" />
+        <MobileMetric label="Planilla de cobranzas del día" value={`${todayClientCount} cliente(s)`} detail="Ver y cobrar" to="/vencimientos" icon={<Users className="h-7 w-7" />} tone="blue" />
       </section>
 
       <section className="space-y-4">
@@ -130,7 +138,7 @@ export function DashboardPage() {
         <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-soft">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-extrabold">Cobros de hoy</h2>
-            <Link className="inline-flex items-center gap-1 text-sm font-bold text-brand-700" to="/reportes/cobranza">
+            <Link className="inline-flex items-center gap-1 text-sm font-bold text-brand-700" to="/vencimientos">
               Ver todos <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
@@ -162,12 +170,13 @@ export function DashboardPage() {
                     <p className="font-extrabold">{formatCurrency(credit.installmentValue)}</p>
                     <StatusBadge status={statusOf(credit)} />
                     <p className="mt-1 text-xs text-slate-400">Saldo {formatCurrency(credit.totalAmount - paid)}</p>
+                    <Link className="mt-2 inline-flex min-h-11 items-center rounded-md bg-brand-600 px-3 text-sm font-bold text-white" to={`/pagos/nuevo?creditId=${encodeURIComponent(credit.id)}`}>Registrar pago</Link>
                   </div>
                 </div>
               );
             })}
             {!recentCredits.length ? (
-              <div className="p-5 text-center text-sm text-slate-500">Todavia no hay cobros cargados.</div>
+              <div className="p-5 text-center text-sm text-slate-500">No hay cuotas pendientes que venzan hoy.</div>
             ) : null}
           </div>
         </div>
