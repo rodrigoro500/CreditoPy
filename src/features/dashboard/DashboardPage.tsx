@@ -25,12 +25,13 @@ import { getPaidInstallmentCount } from "../../lib/installments";
 
 export function DashboardPage() {
   const { isAdmin, profile } = useAuth();
-  const { credits, getPaidByCredit, getInstallmentsByCredit } = useDataStore();
+  const { credits, payments, getPaidByCredit, getInstallmentsByCredit } = useDataStore();
   const today = useToday();
   const statusOf = (credit: (typeof credits)[number]) => currentCreditStatus(credit, getInstallmentsByCredit(credit.id), getPaidByCredit(credit.id), today);
   const totalPortfolio = credits.reduce((sum, credit) => sum + credit.totalAmount, 0);
   const totalPaid = credits.reduce((sum, credit) => sum + getPaidByCredit(credit.id), 0);
   const pendingBalance = totalPortfolio - totalPaid;
+  const collectedThisMonth = payments.filter((payment) => payment.paidAt.slice(0, 7) === today.slice(0, 7) && payment.paidAt.slice(0, 10) <= today).reduce((sum, payment) => sum + payment.amount, 0);
   const lateCount = new Set(credits.filter((credit) => statusOf(credit) === "late").map((credit) => credit.clientId)).size;
   const displayName = profile?.full_name?.split(" ")[0] || "Usuario";
   const todayLabel = new Intl.DateTimeFormat("es-PY", {
@@ -119,7 +120,7 @@ export function DashboardPage() {
 
       <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <MobileMetric label="Cartera activa" value={formatCurrency(totalPortfolio)} detail="Ver detalles" to="/reportes/saldos" icon={<WalletCards className="h-7 w-7" />} tone="green" />
-        <MobileMetric label="Cobrado este mes" value={formatCurrency(totalPaid)} detail="Ver detalles" to="/reportes" icon={<CircleDollarSign className="h-7 w-7" />} tone="blue" />
+        <MobileMetric label="Cobrado este mes" value={formatCurrency(collectedThisMonth)} detail="Ver detalles" to="/reportes" icon={<CircleDollarSign className="h-7 w-7" />} tone="blue" />
         <MobileMetric label="Saldo pendiente" value={formatCurrency(pendingBalance)} detail="Ver detalles" to="/reportes/saldos" icon={<CalendarDays className="h-7 w-7" />} tone="yellow" />
         <MobileMetric label="Planilla de cobranzas del día" value={`${todayClientCount} cliente(s)`} detail="Ver y cobrar" to="/vencimientos" icon={<Users className="h-7 w-7" />} tone="blue" />
       </section>

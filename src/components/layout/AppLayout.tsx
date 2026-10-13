@@ -15,6 +15,7 @@ const navigation = [
   { label: "Planes", href: "/planes", icon: Sparkles },
   { label: "Admin", href: "/admin/usuarios", icon: ShieldCheck },
   { label: "Suscripciones", href: "/admin/suscripciones", icon: ReceiptText },
+  { label: "Historial de cobros", href: "/reportes/cobranza", icon: ReceiptText },
   { label: "Mi perfil", href: "/perfil", icon: UserCircle }
 ];
 

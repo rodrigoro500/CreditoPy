@@ -1,9 +1,11 @@
 import { Link } from "react-router-dom";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Banknote, CalendarDays, CircleDollarSign, ClipboardList, TrendingUp, Users } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { StatCard } from "../../components/ui/StatCard";
 import { useDataStore } from "../../app/DataProvider";
+import { useToday } from "../../lib/use-today";
+import { reportRange } from "../../lib/payment-report";
 import { formatCurrency } from "../../lib/format";
 
 type ReportPeriod = "today" | "week" | "month" | "year";
@@ -18,9 +20,10 @@ const periodTabs: { value: ReportPeriod; label: string }[] = [
 export function ReportsPage() {
   const { clients, credits, payments, getPaidByCredit, isDemoMode, resetDemoData } = useDataStore();
   const [period, setPeriod] = useState<ReportPeriod>("month");
-  const { startDate, endDate } = useMemo(() => getPeriodRange(period), [period]);
+  const today = useToday();
+  const { startDate, endDate } = reportRange(period, today);
   const periodCredits = credits.filter((credit) => isDateInRange(credit.startDate, startDate, endDate));
-  const periodPayments = payments.filter((payment) => isDateInRange(payment.paidAt, startDate, endDate));
+  const periodPayments = payments.filter((payment) => isDateInRange(payment.paidAt.slice(0, 10), startDate, endDate));
   const activeClientIds = new Set(credits.filter((credit) => credit.status !== "paid").map((credit) => credit.clientId));
   const amountLent = periodCredits.reduce((sum, credit) => sum + credit.amount, 0);
   const interest = periodCredits.reduce((sum, credit) => sum + credit.interestAmount, 0);
@@ -56,6 +59,8 @@ export function ReportsPage() {
         ))}
       </div>
 
+      <Link to={`/reportes/cobranza?fecha=${today}`} className="flex min-h-12 items-center justify-center rounded-lg bg-brand-600 px-4 py-3 font-bold text-white">Ver quién pagó y cuánto · Elegir fecha de cobro</Link>
+
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Dinero prestado" value={formatCurrency(amountLent)} icon={<Banknote className="h-5 w-5" />} />
         <StatCard label="Dinero recuperado" value={formatCurrency(paid)} icon={<CircleDollarSign className="h-5 w-5" />} tone="green" />
@@ -79,7 +84,7 @@ export function ReportsPage() {
             <Link to="/reportes/cobranza">
               <Button variant="secondary">
                 <CalendarDays className="h-4 w-4" />
-                Reporte de cobranza
+                Historial de cobros
               </Button>
             </Link>
           </div>
@@ -94,33 +99,6 @@ export function ReportsPage() {
       </section>
     </div>
   );
-}
-
-function getPeriodRange(period: ReportPeriod) {
-  const now = new Date();
-  const start = new Date(now);
-  const end = new Date(now);
-
-  if (period === "today") {
-    return { startDate: toInputDate(start), endDate: toInputDate(end) };
-  }
-
-  if (period === "week") {
-    start.setDate(now.getDate() - 6);
-    return { startDate: toInputDate(start), endDate: toInputDate(end) };
-  }
-
-  if (period === "month") {
-    start.setDate(1);
-    return { startDate: toInputDate(start), endDate: toInputDate(end) };
-  }
-
-  start.setMonth(0, 1);
-  return { startDate: toInputDate(start), endDate: toInputDate(end) };
-}
-
-function toInputDate(date: Date) {
-  return date.toISOString().slice(0, 10);
 }
 
 function isDateInRange(value: string, startDate: string, endDate: string) {
