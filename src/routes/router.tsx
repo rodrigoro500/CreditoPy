@@ -19,6 +19,7 @@ import { PlansPage } from "../features/plans/PlansPage";
 import { BalancesReportPage } from "../features/reports/BalancesReportPage";
 import { CollectionReportPage } from "../features/reports/CollectionReportPage";
 import { ReportsPage } from "../features/reports/ReportsPage";
+import { ProfilePage } from "../features/auth/ProfilePage";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="/inicio" replace /> },
           { path: "inicio", element: <DashboardPage /> },
+          { path: "perfil", element: <ProfilePage /> },
           {
             element: <LenderRoute />,
             children: [

@@ -20,6 +20,7 @@ interface AuthContextValue {
   signUp: (fullName: string, email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  updateDisplayName: (name: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -80,7 +81,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user: session?.user ?? null,
       session,
-      profile,
+      profile: profile ? {
+        ...profile,
+        full_name: typeof session?.user.user_metadata?.display_name === "string" && session.user.user_metadata.display_name.trim()
+          ? session.user.user_metadata.display_name : profile.full_name
+      } : null,
       loading,
       isAdmin: profile?.role === "admin" && profile.approval_status === "approved",
       signIn: async (email, password) => {
@@ -112,7 +117,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       signOut: async () => {
         if (!supabase) return;
-        await supabase.auth.signOut();
+        const { error } = await supabase.auth.signOut({ scope: "local" });
+        if (error) throw error;
+        setSession(null);
+        setProfile(null);
+      },
+      updateDisplayName: async (name) => {
+        if (!supabase || !session?.user) throw new Error("Iniciá sesión para modificar tu perfil.");
+        const normalized = name.trim();
+        if (normalized.length < 2 || normalized.length > 100) throw new Error("El nombre debe tener entre 2 y 100 caracteres.");
+        const { data, error } = await supabase.auth.updateUser({ data: { display_name: normalized } });
+        if (error) throw error;
+        setSession((current) => current && data.user ? { ...current, user: data.user } : current);
       },
       refreshProfile
     }),
