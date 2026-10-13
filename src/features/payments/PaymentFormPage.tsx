@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDataStore } from "../../app/DataProvider";
 import { Button } from "../../components/ui/Button";
 import { todayInputValue } from "../../lib/date-utils";
@@ -12,9 +12,12 @@ import type { PaymentMethod, PaymentType } from "../../types/domain";
 
 export function PaymentFormPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { credits, addPayment, addExtensionInterestPayment, getPaidByCredit, getInstallmentsByCredit } = useDataStore();
-  const [creditId, setCreditId] = useState(credits[0]?.id ?? "");
-  const [amount, setAmount] = useState(credits[0]?.installmentValue ?? 0);
+  const requestedCreditId = searchParams.get("creditId");
+  const initialCredit = credits.find((item) => item.id === requestedCreditId) ?? credits[0];
+  const [creditId, setCreditId] = useState(initialCredit?.id ?? "");
+  const [amount, setAmount] = useState(initialCredit?.installmentValue ?? 0);
   const [paidAt, setPaidAt] = useState(todayInputValue());
   const [method, setMethod] = useState<PaymentMethod>("cash");
   const [paymentType, setPaymentType] = useState<PaymentType>("installment");
@@ -34,6 +37,12 @@ export function PaymentFormPage() {
   const installments = credit ? getInstallmentsByCredit(credit.id) : [];
   const paidInstallmentCount = credit ? getPaidInstallmentCount(credit, paid) : 0;
   const nextInstallment = credit ? getNextInstallment(installments, paidInstallmentCount) : undefined;
+
+  useEffect(() => {
+    if (requestedCreditId && credits.some((item) => item.id === requestedCreditId) && creditId !== requestedCreditId) {
+      handleCreditChange(requestedCreditId);
+    }
+  }, [requestedCreditId, credits]);
 
   useEffect(() => {
     if (!creditId && credits[0]) {
