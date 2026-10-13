@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
 import { useDataStore } from "../../app/DataProvider";
-import { todayInputValue } from "../../lib/date-utils";
+import { useToday } from "../../lib/use-today";
 import { formatCurrency, formatDate } from "../../lib/format";
 import { getPaidInstallmentCount } from "../../lib/installments";
 
@@ -22,7 +22,7 @@ export function DueDatesPage() {
   const { credits, getPaidByCredit, getInstallmentsByCredit } = useDataStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedFilter = normalizeFilter(searchParams.get("estado"));
-  const today = todayInputValue();
+  const today = useToday();
 
   const rows = credits.flatMap((credit) => {
     const paid = getPaidByCredit(credit.id);

@@ -19,14 +19,18 @@ import { Button } from "../../components/ui/Button";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { useDataStore } from "../../app/DataProvider";
 import { formatCurrency } from "../../lib/format";
+import { currentCreditStatus } from "../../lib/credit-status";
+import { useToday } from "../../lib/use-today";
 
 export function DashboardPage() {
   const { isAdmin, profile } = useAuth();
-  const { credits, getPaidByCredit } = useDataStore();
+  const { credits, getPaidByCredit, getInstallmentsByCredit } = useDataStore();
+  const today = useToday();
+  const statusOf = (credit: (typeof credits)[number]) => currentCreditStatus(credit, getInstallmentsByCredit(credit.id), getPaidByCredit(credit.id), today);
   const totalPortfolio = credits.reduce((sum, credit) => sum + credit.totalAmount, 0);
   const totalPaid = credits.reduce((sum, credit) => sum + getPaidByCredit(credit.id), 0);
   const pendingBalance = totalPortfolio - totalPaid;
-  const lateCount = credits.filter((credit) => credit.status === "late").length;
+  const lateCount = new Set(credits.filter((credit) => statusOf(credit) === "late").map((credit) => credit.clientId)).size;
   const displayName = profile?.full_name?.split(" ")[0] || "Usuario";
   const todayLabel = new Intl.DateTimeFormat("es-PY", {
     weekday: "long",
@@ -148,15 +152,15 @@ export function DashboardPage() {
                     <div className="min-w-0">
                       <p className="truncate text-lg font-extrabold leading-tight">{credit.clientName}</p>
                       <p className="truncate text-sm text-slate-500">Credito N. {getShortCreditLabel(credit.id)}</p>
-                      <p className={`mt-1 flex items-center gap-1 text-sm font-semibold ${credit.status === "late" ? "text-red-600" : "text-slate-500"}`}>
+                      <p className={`mt-1 flex items-center gap-1 text-sm font-semibold ${statusOf(credit) === "late" ? "text-red-600" : "text-slate-500"}`}>
                         <Clock3 className="h-4 w-4" />
-                        {credit.status === "late" ? "Atrasado" : "Vence hoy"}
+                        {statusOf(credit) === "late" ? "Atrasado" : statusOf(credit) === "paid" ? "Pagado" : "Al día"}
                       </p>
                     </div>
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="font-extrabold">{formatCurrency(credit.installmentValue)}</p>
-                    <StatusBadge status={credit.status === "late" ? "late" : "active"} />
+                    <StatusBadge status={statusOf(credit)} />
                     <p className="mt-1 text-xs text-slate-400">Saldo {formatCurrency(credit.totalAmount - paid)}</p>
                   </div>
                 </div>

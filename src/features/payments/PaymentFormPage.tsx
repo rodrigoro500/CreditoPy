@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDataStore } from "../../app/DataProvider";
@@ -22,6 +22,10 @@ export function PaymentFormPage() {
   const [method, setMethod] = useState<PaymentMethod>("cash");
   const [paymentType, setPaymentType] = useState<PaymentType>("installment");
   const [search, setSearch] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const savingRef = useRef(false);
+  const appliedRequest = useRef<string | null>(null);
 
   const credit = useMemo(() => credits.find((item) => item.id === creditId) ?? credits[0], [credits, creditId]);
   const filteredCredits = useMemo(() => {
@@ -39,8 +43,9 @@ export function PaymentFormPage() {
   const nextInstallment = credit ? getNextInstallment(installments, paidInstallmentCount) : undefined;
 
   useEffect(() => {
-    if (requestedCreditId && credits.some((item) => item.id === requestedCreditId) && creditId !== requestedCreditId) {
+    if (requestedCreditId && appliedRequest.current !== requestedCreditId && credits.some((item) => item.id === requestedCreditId)) {
       handleCreditChange(requestedCreditId);
+      appliedRequest.current = requestedCreditId;
     }
   }, [requestedCreditId, credits]);
 
@@ -66,7 +71,18 @@ export function PaymentFormPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!credit || amount <= 0) return;
+    if (savingRef.current || !credit) return;
+    if (!Number.isFinite(amount) || amount <= 0 || !paidAt) {
+      setError("Ingresá un monto y una fecha válidos.");
+      return;
+    }
+    if (balance <= 0 || (paymentType === "installment" && amount > balance)) {
+      setError("El monto no puede superar el saldo pendiente.");
+      return;
+    }
+    savingRef.current = true;
+    setSaving(true);
+    setError("");
 
     const payment = {
       id: createId("pay"),
@@ -81,13 +97,19 @@ export function PaymentFormPage() {
       notes: paymentType === "extension_interest" ? "Interes de prorroga de cuota" : undefined
     };
 
-    if (paymentType === "extension_interest") {
-      await addExtensionInterestPayment(payment, nextInstallment?.number ?? paidInstallmentCount + 1);
-    } else {
-      await addPayment(payment);
+    try {
+      if (paymentType === "extension_interest") {
+        await addExtensionInterestPayment(payment, nextInstallment?.number ?? paidInstallmentCount + 1);
+      } else {
+        await addPayment(payment);
+      }
+      navigate("/vencimientos");
+    } catch {
+      setError("No se pudo registrar el pago. Revisá tu conexión e intentá nuevamente.");
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
-
-    navigate("/creditos");
   }
 
   return (
@@ -216,8 +238,9 @@ export function PaymentFormPage() {
           ) : null}
         </div>
 
-        <Button className="mt-5 w-full" type="submit" disabled={!credits.length}>
-          {paymentType === "extension_interest" ? "Registrar interes y prorrogar" : "Registrar pago"}
+        {error && <p role="alert" className="mt-4 text-sm font-semibold text-red-700">{error}</p>}
+        <Button className="mt-5 w-full" type="submit" disabled={!credits.length || saving || balance <= 0}>
+          {saving ? "Guardando…" : paymentType === "extension_interest" ? "Registrar interes y prorrogar" : "Registrar pago"}
         </Button>
       </form>
     </div>

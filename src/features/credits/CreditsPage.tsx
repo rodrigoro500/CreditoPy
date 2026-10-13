@@ -7,6 +7,8 @@ import { formatCurrency, formatDate } from "../../lib/format";
 import { frequencyLabel } from "../../lib/credit-calculator";
 import { getNextInstallment, getPaidInstallmentCount } from "../../lib/installments";
 import type { CreditFrequency } from "../../types/domain";
+import { currentCreditStatus } from "../../lib/credit-status";
+import { useToday } from "../../lib/use-today";
 
 type FrequencyFilter = CreditFrequency | "all";
 
@@ -19,6 +21,7 @@ const frequencyFilters: { value: FrequencyFilter; label: string }[] = [
 ];
 
 export function CreditsPage() {
+  const today = useToday();
   const { credits, getPaidByCredit, getInstallmentsByCredit } = useDataStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedFrequency = normalizeFrequency(searchParams.get("frecuencia"));
@@ -71,9 +74,10 @@ export function CreditsPage() {
           const paidInstallments = getPaidInstallmentCount(credit, paid);
           const installments = getInstallmentsByCredit(credit.id);
           const nextInstallment = getNextInstallment(installments, paidInstallments);
+          const status = currentCreditStatus(credit, installments, paid, today);
 
           return (
-            <article key={credit.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
+            <article key={credit.id} className={`rounded-lg border p-4 shadow-soft ${status === "late" ? "border-red-300 bg-red-50" : "border-slate-200 bg-white"}`}>
               <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
                 <div>
                   <p className="text-sm font-semibold text-slate-500">{credit.id}</p>
@@ -93,7 +97,7 @@ export function CreditsPage() {
                       Editar
                     </Button>
                   </Link>
-                  <StatusBadge status={credit.status === "late" ? "late" : "active"} />
+                  <StatusBadge status={status} />
                 </div>
               </div>
 
