@@ -1,94 +1,92 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
-import { StatusBadge } from "../../components/ui/StatusBadge";
 import { useDataStore } from "../../app/DataProvider";
+import { todayInputValue } from "../../lib/date-utils";
 import { formatCurrency, formatDate } from "../../lib/format";
-import { getNextInstallment, getPaidInstallmentCount } from "../../lib/installments";
+import { getPaidInstallmentCount } from "../../lib/installments";
 
 type DueFilter = "today" | "upcoming" | "late";
-
 const dueTabs: { value: DueFilter; label: string }[] = [
-  { value: "today", label: "Hoy" },
-  { value: "upcoming", label: "Proximos" },
-  { value: "late", label: "Atrasados" }
+  { value: "today", label: "Cobros de hoy" },
+  { value: "upcoming", label: "Próximos" },
+  { value: "late", label: "En mora" }
 ];
+
+function daysBetween(from: string, to: string) {
+  const start = Date.parse(`${from}T00:00:00Z`);
+  const end = Date.parse(`${to}T00:00:00Z`);
+  return Math.max(0, Math.round((end - start) / 86400000));
+}
 
 export function DueDatesPage() {
   const { credits, getPaidByCredit, getInstallmentsByCredit } = useDataStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedFilter = normalizeFilter(searchParams.get("estado"));
-  const today = new Date().toISOString().slice(0, 10);
-  const rows = credits
-    .map((credit) => {
-      const paid = getPaidByCredit(credit.id);
-      const paidInstallments = getPaidInstallmentCount(credit, paid);
-      const nextInstallment = getNextInstallment(getInstallmentsByCredit(credit.id), paidInstallments);
-      return {
-        credit,
-        paid,
-        balance: Math.max(0, credit.totalAmount - paid),
-        nextInstallment
-      };
-    })
-    .filter((row) => row.nextInstallment && row.balance > 0)
-    .filter((row) => {
-      const dueDate = row.nextInstallment!.dueDate;
-      if (selectedFilter === "today") return dueDate === today;
-      if (selectedFilter === "late") return dueDate < today;
-      return dueDate > today;
-    })
-    .sort((a, b) => a.nextInstallment!.dueDate.localeCompare(b.nextInstallment!.dueDate));
+  const today = todayInputValue();
+
+  const rows = credits.flatMap((credit) => {
+    const paid = getPaidByCredit(credit.id);
+    const balance = Math.max(0, credit.totalAmount - paid);
+    if (balance <= 0) return [];
+    const installments = getInstallmentsByCredit(credit.id);
+    const paidCount = getPaidInstallmentCount(credit, paid);
+    const pending = installments.filter((item) => item.number > paidCount);
+    const overdue = pending.filter((item) => item.dueDate < today);
+    const todayDue = pending.filter((item) => item.dueDate === today);
+    const upcoming = pending.filter((item) => item.dueDate > today);
+    const next = pending[0];
+    if (!next) return [];
+    // Un crédito atrasado también debe aparecer en el recorrido de cobro del día
+    // si tiene una cuota que vence hoy.
+    const show = selectedFilter === "late" ? overdue.length > 0
+      : selectedFilter === "today" ? todayDue.length > 0
+      : overdue.length === 0 && todayDue.length === 0 && upcoming.length > 0;
+    if (!show) return [];
+    const oldestOverdue = overdue[0];
+    return [{
+      credit, balance, paidCount, overdueCount: overdue.length,
+      dueTodayCount: todayDue.length,
+      daysLate: oldestOverdue ? daysBetween(oldestOverdue.dueDate, today) : 0,
+      nextDue: selectedFilter === "today" ? todayDue[0] : selectedFilter === "upcoming" ? upcoming[0] : oldestOverdue ?? next
+    }];
+  }).sort((a, b) => a.nextDue.dueDate.localeCompare(b.nextDue.dueDate));
 
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold">Vencimientos</h1>
-        <p className="text-slate-500">Vista base para cobros de hoy, proximos y atrasados.</p>
+        <h1 className="text-2xl font-bold">Cobranza y vencimientos</h1>
+        <p className="text-slate-500">Consultá los cobros del día y los créditos atrasados.</p>
       </div>
-
       <div className="grid grid-cols-3 rounded-lg border border-slate-200 bg-white p-1 shadow-soft">
         {dueTabs.map((tab) => (
-          <button
-            key={tab.value}
-            className={`h-10 rounded-md text-sm font-semibold ${selectedFilter === tab.value ? "bg-brand-600 text-white" : "text-slate-600"}`}
-            type="button"
-            onClick={() => setSearchParams(tab.value === "today" ? {} : { estado: tab.value === "late" ? "atrasados" : "proximos" })}
-          >
+          <button key={tab.value} type="button"
+            className={`min-h-11 rounded-md px-1 text-xs font-semibold sm:text-sm ${selectedFilter === tab.value ? "bg-brand-600 text-white" : "text-slate-600"}`}
+            onClick={() => setSearchParams(tab.value === "today" ? {} : { estado: tab.value === "late" ? "atrasados" : "proximos" })}>
             {tab.label}
           </button>
         ))}
       </div>
-
+      <p className="text-sm font-semibold text-slate-600">{rows.length} crédito(s) en esta vista</p>
       <section className="grid gap-4">
-        {rows.map(({ credit, balance, nextInstallment }) => {
-          return (
-            <article key={credit.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft">
-              <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
-                <div>
-                  <h2 className="font-bold">{credit.clientName}</h2>
-                  <p className="text-sm text-slate-500">
-                    Vence {formatDate(nextInstallment!.dueDate)} - cuota {formatCurrency(nextInstallment!.amount)}
-                  </p>
-                  <p className="text-sm text-slate-500">
-                    Cuota {nextInstallment!.number}/{credit.installments}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold">Saldo {formatCurrency(balance)}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <StatusBadge status={nextInstallment!.dueDate < today ? "late" : "soon"} />
-                  <Link to="/pagos/nuevo">
-                    <Button>Registrar pago</Button>
-                  </Link>
-                </div>
+        {rows.map(({ credit, balance, paidCount, overdueCount, dueTodayCount, daysLate, nextDue }) => (
+          <article key={credit.id} className={`rounded-xl border p-4 shadow-soft ${overdueCount ? "border-red-300 bg-red-50" : "border-slate-200 bg-white"}`}>
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+              <div className="space-y-1">
+                <h2 className="text-lg font-bold text-slate-900">{credit.clientName}</h2>
+                {overdueCount > 0 && <p className="font-bold text-red-700">En mora · {daysLate} día(s) · {overdueCount} cuota(s) vencida(s)</p>}
+                {dueTodayCount > 0 && <p className="font-semibold text-amber-800">{dueTodayCount} cuota(s) vencen hoy</p>}
+                <p className="text-sm text-slate-600">Cuota: {formatCurrency(credit.installmentValue)}</p>
+                <p className="text-sm text-slate-600">Pagadas: {paidCount} de {credit.installments}</p>
+                <p className="text-sm text-slate-600">Próximo vencimiento: {formatDate(nextDue.dueDate)} (cuota {nextDue.number})</p>
+                <p className="font-bold text-slate-900">Saldo pendiente: {formatCurrency(balance)}</p>
               </div>
-            </article>
-          );
-        })}
-        {!rows.length ? (
-          <div className="rounded-lg border border-slate-200 bg-white p-6 text-center text-sm text-slate-500 shadow-soft">
-            No hay vencimientos para este filtro.
-          </div>
-        ) : null}
+              <Link to={`/pagos/nuevo?creditId=${encodeURIComponent(credit.id)}`}>
+                <Button>Registrar pago</Button>
+              </Link>
+            </div>
+          </article>
+        ))}
+        {!rows.length && <div className="rounded-lg border border-slate-200 bg-white p-6 text-center text-sm text-slate-500 shadow-soft">No hay cobros para este filtro.</div>}
       </section>
     </div>
   );
